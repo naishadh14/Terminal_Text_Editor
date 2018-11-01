@@ -39,7 +39,7 @@ char shiftRight(int y, int x, char **lines) {
 	//return last element of the array to deal with character overflow while inserting
 }
 
-void delete(int y, int x, char **lines) {
+void backspace(int y, int x, char **lines) {
 	int count, i, xmax, ymax, prevlinecount;
 	if(y == 0 && x == 0)
 		return;
@@ -58,7 +58,30 @@ void delete(int y, int x, char **lines) {
 	}
 	else { //if line is empty
 		prevlinecount = strlen(lines[y - 1]);
-		move(y - 1, prevlinecount);//do something
+		move(y - 1, prevlinecount); //do something
+	}
+}
+
+void delete(int y, int x, char **lines) {
+	int count, i, xmax, ymax, prevlinecount;
+	if(y == 0 && x == 0)
+		return;
+	count = strlen(lines[y]);
+	getmaxyx(stdscr, ymax, xmax);
+	if(count != 0) { //not an empty line
+		shiftLeft(y, x, lines);
+		move(y, 0);
+		for(i = 0; i < xmax; i++) {
+			move(y, i);
+			printw(" ");
+		}
+		move(y, 0);
+		printw("%s", lines[y]);
+		move(y, x);
+	}
+	else { //if line is empty
+		prevlinecount = strlen(lines[y - 1]);
+		move(y - 1, prevlinecount); //do something
 	}
 }
 
@@ -292,11 +315,11 @@ int main(int argc, char *argv[]) {
 				}
 				break;
 			case KEY_BACKSPACE:
-				delete(y, x, lines);
+				backspace(y, x, lines);
 				//printScreen(fd, count, lines);
 				break;
 			case KEY_DC:
-				printw(" ");
+				delete(y, x, lines);
 				move(y, x);
 				break;
 			case KEY_RESIZE:
