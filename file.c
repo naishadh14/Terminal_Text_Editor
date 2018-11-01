@@ -11,42 +11,119 @@
 #include <string.h>
 #include <limits.h>
 
-void shiftRight(int x, int y, char **lines) {
-	int count, i;
+void shiftLeft(int y, int x, char **lines) {
+	int i, count;
 	count = strlen(lines[y]);
-	i = count + 1;
+	i = x;
+	while(i < count) {
+		lines[y][i] = lines[y][i + 1];
+		i++;
+	}
+}
+
+char shiftRight(int y, int x, char **lines) {
+	int count, i, xmax, ymax;
+	char c;
+	getmaxyx(stdscr, ymax, xmax);
+	count = strlen(lines[y]);
+	i = count;
 	while(i != x) {
 		lines[y][i] = lines[y][i - 1];
 		i--;
 	}
+	if(count == xmax) {
+		c = lines[y][count];
+		lines[y][count] = '\0';
+	}
+	return c;
+	//return last element of the array to deal with character overflow while inserting
 }
 
-void insert(char ch, char **lines) {
-	int count, y, x, i, xmax, ymax;
-	getyx(stdscr, y, x);
+void delete(int y, int x, char **lines) {
+	int count, i, xmax, ymax, prevlinecount;
+	if(y == 0 && x == 0)
+		return;
+	count = strlen(lines[y]);
+	getmaxyx(stdscr, ymax, xmax);
+	if(count != 0) { //not an empty line
+		shiftLeft(y, x - 1, lines);
+		move(y, 0);
+		for(i = 0; i < xmax; i++) {
+			move(y, i);
+			printw(" ");
+		}
+		move(y, 0);
+		printw("%s", lines[y]);
+		move(y, x - 1);
+	}
+	else { //if line is empty
+		prevlinecount = strlen(lines[y - 1]);
+		move(y - 1, prevlinecount);//do something
+	}
+}
+
+void insert(int y, int x, char ch, char **lines) { //handle tabs and enter
+	int count, i, xmax, ymax, j;
+	char c;
 	count = strlen(lines[y]);
 	getmaxyx(stdscr, ymax, xmax);
 	if(count < xmax) {
 		if(x > count) {
 			i = count;
-			while(i != x)
-				lines[y][i++] = ' ';
-			lines[y][x] = ch;
-			lines[y][x+1] = '\0';
-			move(y, 0);
-			printw("%s", lines[y]);
-			move(y, x + 1);
+			while(i != x) //if user starts from middle
+				lines[y][i++] = ' '; //put spaces until x-1 then put the char entered
+			if(ch == '\t') {
+				lines[y][x++] = ' ';
+				lines[y][x++] = ' ';
+				lines[y][x++] = ' ';
+				lines[y][x++] = ' ';
+				lines[y][x] = '\0';
+				move(y, 0);
+				printw("%s", lines[y]);
+				move(y, x + 4);
+			}
+			else {
+				lines[y][x] = ch;
+				lines[y][x+1] = '\0';
+				move(y, 0);
+				printw("%s", lines[y]);
+				move(y, x + 1);
+			}
 		}
 		else if(x <= count) {
-			shiftRight(x, y, lines);
-			lines[y][x] = ch;
-			move(y, 0);
-			printw("%s", lines[y]);
-			move(y, x + 1);
+			if(ch == '\t') {
+				if(count + 4 > xmax)
+					return;
+				j = x;
+				shiftRight(y, x, lines);
+				lines[y][x++] = ' ';
+				shiftRight(y, x, lines);
+				lines[y][x++] = ' ';
+				shiftRight(y, x, lines);
+				lines[y][x++] = ' ';
+				shiftRight(y, x, lines);
+				lines[y][x++] = ' ';
+				move(y, 0);
+				printw("%s", lines[y]);
+				x = j;
+				move(y, x + 4);
+			}
+			else {
+				shiftRight(y, x, lines);
+				lines[y][x] = ch;
+				move(y, 0);
+				printw("%s", lines[y]);
+				move(y, x + 1);
+			}
 		}
 	}
-	else {
-		//do something
+	else { //if count is xmax, we need to put chars in the next line
+		c = shiftRight(y, x, lines);
+		lines[y][x] = ch;
+		move(y, 0);
+		printw("%s", lines[y]);
+		insert(y + 1, 0, c, lines);
+		move(y, x + 1);
 	}
 }
 
@@ -72,7 +149,7 @@ int countLineFile(int fd) {
 }
 
 int readLine(int fd, char **lines, int i) {
-	int ymax, xmax, j = 0, eof = 1;
+	int ymax, xmax, j = 0, eof = 1, flag = 0;
 	char c;
 	getmaxyx(stdscr, ymax, xmax);
 	while(j < xmax && (eof = read(fd, &c, 1))) {
@@ -92,30 +169,35 @@ int readLine(int fd, char **lines, int i) {
 	lines[i][j++] = '\0';
 	if(eof == 0)
 		return INT_MAX;
+	if(lines[i][0] == '\0')
+		return INT_MIN;
 	return j;
 }
 
 int printScreen(int fd, int count, char **lines) {
-	int xmax, ymax, check, eof, sum, i;
+	int xmax, ymax, check, eof, i;
+	long long sum;
 	sum = eof = 0;
 	getmaxyx(stdscr, ymax, xmax);
 	lseek(fd, 0, SEEK_SET);
 	for(i = 0; i < count; i++) {
-		sum+= countLineFile(fd);
+		sum = countLineFile(fd);
+		lseek(fd, sum, SEEK_CUR);
 	}
-	move(ymax - 1, 0);
-	lseek(fd, sum, SEEK_SET);
 	move(0, 0);
 	for(i = 0; i < ymax; i++) {
 		check = readLine(fd, lines, i);
-		if(check != 1) {
-			printw("%s", lines[i]);
-			if(check != xmax + 1)
-				printw("\n");
-		}
 		if(check == INT_MAX) {
 			eof = 1;
 			break;
+		}
+		if(check == INT_MIN) {
+			printw("\n");
+		}
+		else if(check != 1) {
+			printw("%s", lines[i]);
+			if(check != xmax + 1)
+				printw("\n");
 		}
 	}
 	return eof;
@@ -131,10 +213,10 @@ int main(int argc, char *argv[]) {
 	* Each string is the characters to be displayed on a line.
 	*/
 	if(argc != 2) {
-		printf("Please enter 2 arguments\n");
+		printf("Please enter the file name as the 2nd argument\n");
 		return EINVAL;
 	}
-	fd = open(argv[1], O_RDWR);
+	fd = open(argv[1], O_RDWR | O_CREAT);
 	if(fd == 0) {
 		perror("Could not open file: ");
 		return errno;
@@ -154,7 +236,7 @@ int main(int argc, char *argv[]) {
 		if(lines[i] == NULL)
 			return ENOMEM;
 	}
-	printScreen(fd, count, lines);
+	eof = printScreen(fd, count, lines);
 	while(1) {
 		ch = getch();
 		getyx(stdscr, y, x);
@@ -210,8 +292,8 @@ int main(int argc, char *argv[]) {
 				}
 				break;
 			case KEY_BACKSPACE:
-				mvprintw(y, x - 1, " ");
-				move(y, x - 1);
+				delete(y, x, lines);
+				//printScreen(fd, count, lines);
 				break;
 			case KEY_DC:
 				printw(" ");
@@ -229,10 +311,10 @@ int main(int argc, char *argv[]) {
 					if(lines[i] == NULL)
 						return ENOMEM;
 				}
-				printScreen(fd, count, lines);
+				printScreen(fd, count, lines); //eof = printScreen
 				break;
 			default:
-				insert(ch, lines);
+				insert(y, x, ch, lines);
 		}
 		if(flag == 1)
 			break;
