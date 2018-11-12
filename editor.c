@@ -1,11 +1,7 @@
 /*
-* 3. Yet to handle enter
 * 4. Look into getmaxx to remove unused ymax ke compiler warnings
 * 5. Check program hanging when KEY_UP or insert from a high up file position
 * 6. Check when trying to save at the end of a file
-* 7. Program detects correct cursor position only when user moves left/right in the start
-* 8. Do something to show that file has been saved
-* 9. Handle Deletion
 */
 #include <ncurses.h>
 #include <fcntl.h>
@@ -144,40 +140,59 @@ void insertInFile(int fcp, char ch) {
 	lseek(fcp, fcpset + 1, SEEK_SET);
 }
 
-void backspaceFromFile(int fcp, char *file) {
-	int fd, fcpset, i, length, check = 0, fcpset1;
+void deleteFromFile(int fcp) {
+	int fd, i, fcpset, length;
 	char c;
 	fd = open("temp1.txt", O_RDWR | O_CREAT | O_TRUNC, 0777);
-	if(fd == -1) {
-		perror("Error opening file: ");
-		exit(1);
+	fcpset = lseek(fcp, 0, SEEK_CUR);
+	lseek(fcp, 0, SEEK_SET);
+	for(i = 0; i < fcpset; i++) {
+		read(fcp, &c, 1);
+		write(fd, &c, 1);
 	}
+	lseek(fcp, 1, SEEK_CUR);
+	copy(fcp, fd);
+	length = lseek(fcp, 0, SEEK_CUR);
+	lseek(fcp, 0, SEEK_SET);
+	lseek(fd, 0, SEEK_SET);
+	copy(fd, fcp);
+	ftruncate(fcp, length - 1);
+	lseek(fcp, fcpset, SEEK_SET);
+	close(fd);
+	//remove("temp1.txt");
+}
+
+void backspaceFromFile(int fcp) {
+	int fd, i, fcpset, length;
+	char c;
+	fd = open("temp1.txt", O_RDWR | O_CREAT | O_TRUNC, 0777);
 	fcpset = lseek(fcp, 0, SEEK_CUR);
 	lseek(fcp, 0, SEEK_SET);
 	for(i = 0; i < fcpset - 1; i++) {
 		read(fcp, &c, 1);
 		write(fd, &c, 1);
 	}
-	fcpset1 = lseek(fcp, 1, SEEK_CUR);
-	length = (fcp, 0, SEEK_END);
-	lseek(fcp, fcpset1, SEEK_SET);
-	for(i = 0; i < length; i++) {
-		read(fcp, &c, 1);
-		write(fd, &c, 1);
-	}
-	length = lseek(fd, 0, SEEK_CUR);
+	lseek(fcp, 1, SEEK_CUR);
+	copy(fcp, fd);
+	length = lseek(fcp, 0, SEEK_CUR);
 	lseek(fcp, 0, SEEK_SET);
 	lseek(fd, 0, SEEK_SET);
-	for(i = 0; i < length; i++) {
-		read(fd, &c, 1);
-		write(fcp, &c, 1);
-	}
-	close(fcp);
-	remove(file);
-	rename("temp1.txt", file);
-	fcp = open(file, O_RDWR);
+	copy(fd, fcp);
+	ftruncate(fcp, length - 1);
 	lseek(fcp, fcpset - 1, SEEK_SET);
 	close(fd);
+	remove("temp1.txt");
+}
+
+void addN(int fd) {
+	int fdset;
+	char c;
+	fdset = lseek(fd, -1, SEEK_END);
+	read(fd, &c, 1);
+	if(c == '\n')
+		return;
+	c = '\n';
+	write(fd, &c, 1);
 }
 
 void insert(int y, int x, char ch, char **lines) { //handle enter
@@ -301,10 +316,14 @@ void printTest() { //debugging function
     move(y, x);
 }
 
-void save(int fp, int fd) {
-	lseek(fp, 0, SEEK_SET);
+void save(int fp, int fd, int fcp, char *file) {
+	/*lseek(fp, 0, SEEK_SET);
 	lseek(fd, 0, SEEK_SET);
-	copy(fd, fp);
+	copy(fd, fp);*/
+	int fcpset;
+	close(fp);
+	remove(file);
+	rename("temp.txt", file);
 }
 
 int printScreen(int fd, int fcp, int count, char **lines) {
@@ -430,11 +449,12 @@ void fileCursorUp(int fcp) {
 }
 
 int filePositionCheck(int fcp) {
-	int ch, y, x;
+	int chget, ch;
 	char c;
-	ch = inch() & A_CHARTEXT;
 	read(fcp, &c, 1);
 	lseek(fcp, -1, SEEK_CUR);
+	chget = inch();
+	ch = chget & A_CHARTEXT;
 	if(ch == c)
 		return 0;
 	else
@@ -454,7 +474,7 @@ void printCursor(int fcp) { //debugging function
 }
 
 int main(int argc, char *argv[]) {
-	int x, y, xmax, ymax, ssize;
+	int x, y, xmax, ymax, ssize, set;
 	int ch, fd, fp, c; //work with fd, fp is for original file
     int fcp; //File Cursor Position keeps track of where in the file the cursor on screen is
 	char **lines;
@@ -489,6 +509,7 @@ int main(int argc, char *argv[]) {
         return errno;
     }
 	copy(fp, fd); //copy all data in fp to fd
+	addN(fd);
 	initscr();
 	noecho();
 	move(0, 0);
@@ -636,10 +657,14 @@ int main(int argc, char *argv[]) {
 				break;
 			case KEY_BACKSPACE:
 				backspace(y, x, lines);
+				backspaceFromFile(fcp);
+				printCursor(fcp);
 				savecheck = -1;
 				break;
 			case KEY_DC:
 				delete(y, x, lines);
+				deleteFromFile(fcp);
+				printCursor(fcp);
 				move(y, x);
 				break;
             case 10: //value for KEY ENTER
@@ -662,7 +687,10 @@ int main(int argc, char *argv[]) {
 				}
 				printScreen(fd, fcp, count, lines); //test with eof = printScreen
 				break;
-			case KEY_F(2):
+			case KEY_F(2): //save
+				fileCursorLeft(fcp);
+				move(y, x - 1);
+				savecheck = filePositionCheck(fcp);
 				if(savecheck == -1) {
 					close(fcp);
 					close(fp);
@@ -678,9 +706,20 @@ int main(int argc, char *argv[]) {
 					endwin();
 					return 0;
 				}
-				save(fp, fd);
-				break;
-			case KEY_F(3):
+				save(fp, fd, fcp, argv[1]);
+				close(fcp);
+				close(fp);
+				close(fd);
+				endwin();
+				initscr();
+				clear();
+				noecho();
+				printw("File saved successfully.\n");
+				printw("Press any key to exit.\n");
+				getch();
+				endwin();
+				return 0;
+			case KEY_F(3): //exit
 				flag = 1;
 				break;
 			default:
@@ -688,7 +727,6 @@ int main(int argc, char *argv[]) {
 				insertInFile(fcp, ch);
                 break;
 		}
-		if(savecheck != -1)
 			savecheck = filePositionCheck(fcp); //returns -1 if positions are distorted
 		if(flag == 1)
 			break;
