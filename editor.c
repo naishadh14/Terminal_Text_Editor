@@ -1,8 +1,3 @@
-/*
-* 4. Look into getmaxx to remove unused ymax ke compiler warnings
-* 5. Check program hanging when KEY_UP or insert from a high up file position
-* 6. Check when trying to save at the end of a file
-*/
 #include <ncurses.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -90,7 +85,7 @@ void backspace(int y, int x, char **lines) {
 	}
 	else { //if line is empty
 		prevlinecount = strlen(lines[y - 1]);
-		move(y - 1, prevlinecount); //do something
+		move(y - 1, prevlinecount);
 	}
 }
 
@@ -113,7 +108,7 @@ void delete(int y, int x, char **lines) {
 	}
 	else { //if line is empty
 		prevlinecount = strlen(lines[y - 1]);
-		move(y - 1, prevlinecount); //do something
+		move(y - 1, prevlinecount);
 	}
 }
 void insertInFile(int fcp, char ch) {
@@ -159,7 +154,7 @@ void deleteFromFile(int fcp) {
 	ftruncate(fcp, length - 1);
 	lseek(fcp, fcpset, SEEK_SET);
 	close(fd);
-	//remove("temp1.txt");
+	remove("temp1.txt");
 }
 
 void backspaceFromFile(int fcp) {
@@ -195,7 +190,7 @@ void addN(int fd) {
 	write(fd, &c, 1);
 }
 
-void insert(int y, int x, char ch, char **lines) { //handle enter
+void insert(int y, int x, char ch, char **lines) {
 	int count, i, xmax, ymax, j;
 	char c;
 	count = strlen(lines[y]);
@@ -317,9 +312,6 @@ void printTest() { //debugging function
 }
 
 void save(int fp, int fd, int fcp, char *file) {
-	/*lseek(fp, 0, SEEK_SET);
-	lseek(fd, 0, SEEK_SET);
-	copy(fd, fp);*/
 	int fcpset;
 	close(fp);
 	remove(file);
@@ -427,11 +419,8 @@ void fileCursorUp(int fcp) {
     lseek(fcp, distance, SEEK_CUR); //set fcp to it's original position
     if(distance >= xmax)
         lseek(fcp, -xmax, SEEK_CUR);
-    //see if you need a separate condition for distance == xmax
     else {
         count = locatePreviousN(fcp);
-        //move(ymax - 1, 0);
-        //printw("count is %d", count);
         lseek(fcp, -(count + 1), SEEK_CUR);
         count2 = locatePreviousN(fcp);
         lseek(fcp, -count2, SEEK_CUR);
@@ -474,7 +463,7 @@ void printCursor(int fcp) { //debugging function
 }
 
 int main(int argc, char *argv[]) {
-	int x, y, xmax, ymax, ssize, set;
+	int x, y, xmax, ymax, set;
 	int ch, fd, fp, c; //work with fd, fp is for original file
     int fcp; //File Cursor Position keeps track of where in the file the cursor on screen is
 	char **lines;
@@ -554,7 +543,6 @@ int main(int argc, char *argv[]) {
 		}
 		move(y, x - 1);
 		fileCursorLeft(fcp);
-		printCursor(fcp);
 	}
 	for(i = 0; i < 5; i++) {
 		getyx(stdscr, y, x);
@@ -568,16 +556,15 @@ int main(int argc, char *argv[]) {
 			if(movecheck == ERR)
 				break;
 			fileCursorRight(fcp);
-			printCursor(fcp);
 			break;
 		}
 		movecheck = move(y, x + 1);
 		if(movecheck == ERR)
 			break;
 		fileCursorRight(fcp);
-		printCursor(fcp);
 	}
     while(1) {
+    	printCursor(fcp);
 		ch = getch();
 		getyx(stdscr, y, x);
 		switch(ch) {
@@ -592,7 +579,6 @@ int main(int argc, char *argv[]) {
 				}
 				move(y, x - 1);
                 fileCursorLeft(fcp);
-                printCursor(fcp);
 				break;
 			case KEY_RIGHT:
                 if(y == eof)
@@ -605,14 +591,12 @@ int main(int argc, char *argv[]) {
                     if(movecheck == ERR)
                         break;
                     fileCursorRight(fcp);
-                    printCursor(fcp);
 					break;
 				}
 				movecheck = move(y, x + 1);
                 if(movecheck == ERR)
                     break;
                 fileCursorRight(fcp);
-                printCursor(fcp);
 				break;
 			case KEY_UP:
 				if(y == 0) {
@@ -632,7 +616,6 @@ int main(int argc, char *argv[]) {
 						move(y - 1, x);
 				}
                 fileCursorUp(fcp);
-                printCursor(fcp);
 				break;
 			case KEY_DOWN:
 				if(y == ymax - 1) {
@@ -653,18 +636,15 @@ int main(int argc, char *argv[]) {
 						move(y + 1, x);
 				}
                 fileCursorDown(fcp);
-                printCursor(fcp);
 				break;
 			case KEY_BACKSPACE:
 				backspace(y, x, lines);
 				backspaceFromFile(fcp);
-				printCursor(fcp);
 				savecheck = -1;
 				break;
 			case KEY_DC:
 				delete(y, x, lines);
 				deleteFromFile(fcp);
-				printCursor(fcp);
 				move(y, x);
 				break;
             case 10: //value for KEY ENTER
@@ -685,7 +665,7 @@ int main(int argc, char *argv[]) {
 					if(lines[i] == NULL)
 						return ENOMEM;
 				}
-				printScreen(fd, fcp, count, lines); //test with eof = printScreen
+				printScreen(fd, fcp, count, lines);
 				break;
 			case KEY_F(2): //save
 				fileCursorLeft(fcp);
