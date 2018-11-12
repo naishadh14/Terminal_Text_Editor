@@ -1,0 +1,4 @@
+This is a text file created by Naishadh for his DSA Project which
+is to implement his own text editor. The project is harder than he
+expected but he's making decent progress and hopes to
+finish it before Diwali.
