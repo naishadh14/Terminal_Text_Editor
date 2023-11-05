@@ -16,6 +16,8 @@ Compile the program by running the make command:
 make
 ```
 
+Alternatively, the precompiled executable is provided in case manual compilation is not required.
+
 To run the text editor:
 
 ```bash

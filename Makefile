@@ -2,7 +2,7 @@ CC = gcc
 # The use of certain ncurses library functions make it difficult
 # to avoid unused variables. Hence, we skip such warnings
 CFLAGS = -Wall -Werror -Wno-unused-variable
-TARGET = project
+TARGET = editor
 SRCDIR = src
 INCDIR = include
 OBJDIR = build
