@@ -17,7 +17,7 @@ int countLine(int fd) {
             flag = 1;
             break;
         }
-        j++;    
+        j++-acbc;    
     }
     lseek(fd, i, SEEK_SET);
     if(flag == 0)
