@@ -2,6 +2,8 @@
 #include "text_operations.h"
 #include "cursor_movement.h"
 #include "support_functions.h"
+#include "delete_logic.h"
+#include "print_window.h"
 #include <ncurses.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -10,198 +12,8 @@
 #include <string.h>
 #include <limits.h>
 
-void backspace(int y, int x, char **lines) {
-	int count, i, xmax, ymax, prevlinecount;
-	if(y == 0 && x == 0)
-		return;
-	count = strlen(lines[y]);
-	getmaxyx(stdscr, ymax, xmax);
-	if(count != 0) { //not an empty line
-		shiftLeft(y, x - 1, lines);
-		move(y, 0);
-		for(i = 0; i < xmax; i++) {
-			move(y, i);
-			printw(" ");
-		}
-		move(y, 0);
-		printw("%s", lines[y]);
-		move(y, x - 1);
-	}
-	else { //if line is empty
-		prevlinecount = strlen(lines[y - 1]);
-		move(y - 1, prevlinecount);
-	}
-}
-
-void delete(int y, int x, char **lines) {
-	int count, i, xmax, ymax, prevlinecount;
-	if(y == 0 && x == 0)
-		return;
-	count = strlen(lines[y]);
-	getmaxyx(stdscr, ymax, xmax);
-	if(count != 0) { //not an empty line
-		shiftLeft(y, x, lines);
-		move(y, 0);
-		for(i = 0; i < xmax; i++) {
-			move(y, i);
-			printw(" ");
-		}
-		move(y, 0);
-		printw("%s", lines[y]);
-		move(y, x);
-	}
-	else { //if line is empty
-		prevlinecount = strlen(lines[y - 1]);
-		move(y - 1, prevlinecount);
-	}
-}
-
-void deleteFromFile(int fcp) {
-	int fd, i, fcpset, length;
-	char c;
-	fd = open("temp1.txt", O_RDWR | O_CREAT | O_TRUNC, 0777);
-	fcpset = lseek(fcp, 0, SEEK_CUR);
-	lseek(fcp, 0, SEEK_SET);
-	for(i = 0; i < fcpset; i++) {
-		read(fcp, &c, 1);
-		write(fd, &c, 1);
-	}
-	lseek(fcp, 1, SEEK_CUR);
-	copy(fcp, fd);
-	length = lseek(fcp, 0, SEEK_CUR);
-	lseek(fcp, 0, SEEK_SET);
-	lseek(fd, 0, SEEK_SET);
-	copy(fd, fcp);
-	ftruncate(fcp, length - 1);
-	lseek(fcp, fcpset, SEEK_SET);
-	close(fd);
-	remove("temp1.txt");
-}
-
-void backspaceFromFile(int fcp) {
-	int fd, i, fcpset, length;
-	char c;
-	fd = open("temp1.txt", O_RDWR | O_CREAT | O_TRUNC, 0777);
-	fcpset = lseek(fcp, 0, SEEK_CUR);
-	lseek(fcp, 0, SEEK_SET);
-	for(i = 0; i < fcpset - 1; i++) {
-		read(fcp, &c, 1);
-		write(fd, &c, 1);
-	}
-	lseek(fcp, 1, SEEK_CUR);
-	copy(fcp, fd);
-	length = lseek(fcp, 0, SEEK_CUR);
-	lseek(fcp, 0, SEEK_SET);
-	lseek(fd, 0, SEEK_SET);
-	copy(fd, fcp);
-	ftruncate(fcp, length - 1);
-	lseek(fcp, fcpset - 1, SEEK_SET);
-	close(fd);
-	remove("temp1.txt");
-}
-
-void addN(int fd) {
-	int fdset;
-	char c;
-	fdset = lseek(fd, -1, SEEK_END);
-	read(fd, &c, 1);
-	if(c == '\n')
-		return;
-	c = '\n';
-	write(fd, &c, 1);
-}
-
-int readLine(int fd, char **lines, int i) {
-	int ymax, xmax, j = 0, eof = 1;
-	char c;
-	getmaxyx(stdscr, ymax, xmax);
-	while(j < xmax && (eof = read(fd, &c, 1))) {
-		if(c == '\n')
-			break;
-		if(c == '\t') {
-			c = ' ';
-			lines[i][j++] = c;
-			lines[i][j++] = c;
-			lines[i][j++] = c;
-			lines[i][j++] = c;
-			continue;
-		}
-		lines[i][j] = c;
-		j++;
-	}
-	lines[i][j++] = '\0';
-	if(eof == 0)
-		return INT_MAX;
-	if(lines[i][0] == '\0')
-		return INT_MIN;
-	return j;
-}
-
-void printTest() { //debugging function
-    int x, y, xmax, ymax;
-    getyx(stdscr, y, x);
-    getmaxyx(stdscr, ymax, xmax);
-    move(ymax - 1, xmax - 3);
-    printw("Hi");
-    move(y, x);
-}
-
-void save(int fp, int fd, int fcp, char *file) {
-	int fcpset;
-	close(fp);
-	remove(file);
-	rename("temp.txt", file);
-}
-
-int printScreen(int fd, int fcp, int count, char **lines) {
-	int xmax, ymax, check, eof, i;
-	long long sum;
-	sum = 0;
-    eof = -1;
-	getmaxyx(stdscr, ymax, xmax);
-	lseek(fd, 0, SEEK_SET);
-    lseek(fcp, 0, SEEK_SET);
-	for(i = 0; i < count; i++) {
-		sum = countLineFile(fd);
-		lseek(fd, sum, SEEK_CUR);
-        lseek(fcp, sum, SEEK_CUR);
-	}
-	move(0, 0);
-	for(i = 0; i < ymax; i++) {
-		check = readLine(fd, lines, i);
-		if(check == INT_MAX) {
-			eof = i;
-			break;
-		}
-		if(check == INT_MIN) {
-			printw("\n");
-		}
-		else if(check != 1) {
-			printw("%s", lines[i]);
-            lseek(fcp, check, SEEK_CUR);
-			if(check != xmax + 1)
-				printw("\n");
-		}
-	}
-	return eof; /* if eof is -1, it has not reached end of file
-                * if eof is i, it means eof was reached on ith line
-                */
-}
-
-void printCursor(int fcp) { //debugging function
-    int x, y, xmax, ymax;
-    char c;
-    getyx(stdscr, y, x);
-    getmaxyx(stdscr, ymax, xmax);
-    move(0, xmax - 2);
-    read(fcp, &c, 1);
-    lseek(fcp, -1, SEEK_CUR);
-    printw("%c", c);
-    move(y, x);
-}
-
 int main(int argc, char *argv[]) {
-	int x, y, xmax, ymax, set;
+	int x, y, xmax, ymax;
 	// fd is the file pointer for the temporary working file
 	// fp is the file pointer for the original user file
 	int ch, fd, fp, c;
@@ -310,7 +122,6 @@ int main(int argc, char *argv[]) {
 		fileCursorRight(fcp);
 	}
     while(1) {
-    	printCursor(fcp);
 		ch = getch();
 		getyx(stdscr, y, x);
 		switch(ch) {

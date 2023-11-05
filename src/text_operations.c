@@ -31,7 +31,7 @@ void shiftLeft(int y, int x, char **lines) {
 
 char shiftRight(int y, int x, char **lines) {
     int count, i, xmax, ymax;
-    char c;
+    char c = '0';
     getmaxyx(stdscr, ymax, xmax);
     count = strlen(lines[y]);
     i = count;

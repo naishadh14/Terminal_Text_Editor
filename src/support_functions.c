@@ -42,3 +42,49 @@ int countLineFile(int fd) {
 		return INT_MAX;
 	return j;
 }
+
+// Function to add a newline character if not present at the end of the file
+void addN(int fd) {
+	int fdset;
+	char c;
+	fdset = lseek(fd, -1, SEEK_END);
+	read(fd, &c, 1);
+	if(c == '\n')
+		return;
+	c = '\n';
+	write(fd, &c, 1);
+}
+
+// Function to read a line from the file and store it in the lines array
+int readLine(int fd, char **lines, int i) {
+	int ymax, xmax, j = 0, eof = 1;
+	char c;
+	getmaxyx(stdscr, ymax, xmax);
+	while(j < xmax && (eof = read(fd, &c, 1))) {
+		if(c == '\n')
+			break;
+		if(c == '\t') {
+			c = ' ';
+			lines[i][j++] = c;
+			lines[i][j++] = c;
+			lines[i][j++] = c;
+			lines[i][j++] = c;
+			continue;
+		}
+		lines[i][j] = c;
+		j++;
+	}
+	lines[i][j++] = '\0';
+	if(eof == 0)
+		return INT_MAX;
+	if(lines[i][0] == '\0')
+		return INT_MIN;
+	return j;
+}
+
+// Function to save changes back to the original file
+void save(int fp, int fd, int fcp, char *file) {
+	close(fp);
+	remove(file);
+	rename("temp.txt", file);
+}
