@@ -1,3 +1,4 @@
+#include "delete_logic.h"
 #include "text_operations.h"
 #include <ncurses.h>
 #include <fcntl.h>

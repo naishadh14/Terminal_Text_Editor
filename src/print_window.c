@@ -1,3 +1,5 @@
+#include "print_window.h"
+#include "support_functions.h"
 #include <ncurses.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -5,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include "support_functions.h"
 
 // Debugging function to print a test message
 void printTest() {
