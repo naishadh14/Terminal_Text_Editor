@@ -1,3 +1,4 @@
+#include "support_functions.h"
 #include <unistd.h>
 #include <stdio.h>
 #include <curses.h>
@@ -87,4 +88,17 @@ void save(int fp, int fd, int fcp, char *file) {
 	close(fp);
 	remove(file);
 	rename("temp.txt", file);
+}
+
+void clearScreen(int fcp, int fp, int fd, char *message) {
+	close(fcp);
+	close(fp);
+	close(fd);
+	endwin();
+	initscr();
+	clear();
+	noecho();
+	printw(message);
+	getch();
+	endwin();
 }

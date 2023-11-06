@@ -12,6 +12,8 @@
 #include <string.h>
 #include <limits.h>
 
+#define TMP_FILE_NAME "temp.txt"
+
 int main(int argc, char *argv[]) {
 	int x, y, xmax, ymax;
 	// fd is the file pointer for the temporary working file
@@ -43,13 +45,13 @@ int main(int argc, char *argv[]) {
 		return errno;
 	}
 
-	fd = open("temp.txt", O_RDWR | O_CREAT | O_TRUNC, 0777);
+	fd = open(TMP_FILE_NAME, O_RDWR | O_CREAT | O_TRUNC, 0777);
 	if(fd == -1) {
         perror("Could not open temp work file: ");
         return errno;
 	}
 
-    fcp = open("temp.txt", O_RDWR);
+    fcp = open(TMP_FILE_NAME, O_RDWR);
     if(fcp == -1) {
     	perror("Could not open temp work file: ");
         return errno;
@@ -195,6 +197,7 @@ int main(int argc, char *argv[]) {
                 fileCursorDown(fcp);
 				break;
 			case KEY_BACKSPACE:
+			case 127:
 				backspace(y, x, lines);
 				backspaceFromFile(fcp);
 				savecheck = -1;
@@ -224,37 +227,17 @@ int main(int argc, char *argv[]) {
 				}
 				printScreen(fd, fcp, count, lines);
 				break;
-			case KEY_F(2): //save
+			case KEY_F(2): // Save
 				fileCursorLeft(fcp);
 				move(y, x - 1);
 				savecheck = filePositionCheck(fcp);
 				if(savecheck == -1) {
-					close(fcp);
-					close(fp);
-					close(fd);
-					remove("temp.txt");
-					endwin();
-					initscr();
-					clear();
-					noecho();
-					printw("Error encountered while saving.\n");
-					printw("Press any key to exit.\n");
-					getch();
-					endwin();
+					clearScreen(fcp, fp, fd, "Error encountered while saving.\nPress any key to exit.\n");
+					remove(TMP_FILE_NAME);
 					return 0;
 				}
 				save(fp, fd, fcp, argv[1]);
-				close(fcp);
-				close(fp);
-				close(fd);
-				endwin();
-				initscr();
-				clear();
-				noecho();
-				printw("File saved successfully.\n");
-				printw("Press any key to exit.\n");
-				getch();
-				endwin();
+				clearScreen(fcp, fp, fd, "Filed saved successfully.\nPress any key to exit.\n");
 				return 0;
 			case KEY_F(3): //exit
 				flag = 1;
@@ -272,7 +255,7 @@ int main(int argc, char *argv[]) {
     close(fcp);
 	close(fp);
 	close(fd);
-	remove("temp.txt");
+	remove(TMP_FILE_NAME);
 	endwin();
 	return 0;
 }

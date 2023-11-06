@@ -6,5 +6,6 @@ int countLineFile(int fd);
 void addN(int fd);
 int readLine(int fd, char **lines, int i);
 void save(int fp, int fd, int fcp, char *file);
+void clearScreen(int fcp, int fp, int fd, char *message);
 
 #endif
